@@ -3,6 +3,7 @@ import typer
 import codecs
 import os
 from typing_extensions import Annotated
+app = typer.Typer()
 
 def get_file_name(
     file: str,
@@ -23,43 +24,68 @@ def get_file_name(
                 currentString += codecs.decode(byte, 'utf-8')
     return currentString
 
-            
 
-
-def main(
+@app.command()
+def inject(
     file: str,
-    extract: Annotated[bool, typer.Option(help="Extract a BPM file.")] = True
+    inject_file: str,
 ):
-    if extract:
-        arrays = []
-        with open(file, "rb+") as f:
-            data_byte = f.read(16)
-            if len(data_byte) != 16:
+    with open(file, "rb+") as f:
+        data_byte = f.read(16)
+        if len(data_byte) != 16:
+            exit()
+        else:
+            items, buffer, dataOffset = unpack('>IxxxxII', data_byte)
+            print(f"[!] found the data buffer offset at {hex(dataOffset)}")
+            stopLine = int(((dataOffset - buffer) / 16)) * 16
+            sanityCheck = False
+
+            while (byte := f.read(16)):
+                current_line = f.tell()
+                if current_line > stopLine:
+                    break
+                items, itemOffset, size = unpack('>IIIxxxx', byte)
+                name = items + stopLine
+                offset = itemOffset + dataOffset
+                file_name = get_file_name(file, name)
+                if file_name == inject_file:
+                    sanityCheck = True
+            if sanityCheck == False:
+                print("[!!!!] can't find the file to inject")
                 exit()
             else:
-                items, buffer, dataOffset = unpack('>IxxxxII', data_byte)
-                print(f"[!] found the data buffer offset at {hex(dataOffset)}")
-                
-                
-                # evil bexide file list pulling level hacking
-                # what the fuck?
-                stopLine = int(((dataOffset - buffer) / 16)) * 16
-            
-                while (byte := f.read(16)):
-                    current_line = f.tell()
-                    if current_line > stopLine:
-                        break
-                    items, itemOffset, size = unpack('>IIIxxxx', byte)
-                    name = items + stopLine
-                    file_name = get_file_name(file, name)
+                pass
 
-                    offset = itemOffset + dataOffset
-                    arrays.append([offset, size, file_name])
-                    print(f"[-] {file_name} at offset {offset} with {size} bytes")
-        extract_file(file, arrays)
-    else:
-        print('uh, you can only extract btw for now lol')
-        exit()
+@app.command()
+def extract(
+    file: str,
+):
+    arrays = []
+    with open(file, "rb+") as f:
+        data_byte = f.read(16)
+        if len(data_byte) != 16:
+            exit()
+        else:
+            items, buffer, dataOffset = unpack('>IxxxxII', data_byte)
+            print(f"[!] found the data buffer offset at {hex(dataOffset)}")
+                
+                
+            # evil bexide file list pulling level hacking
+            # what the fuck?
+            stopLine = int(((dataOffset - buffer) / 16)) * 16
+            
+            while (byte := f.read(16)):
+                current_line = f.tell()
+                if current_line > stopLine:
+                    break
+                items, itemOffset, size = unpack('>IIIxxxx', byte)
+                name = items + stopLine
+                file_name = get_file_name(file, name)
+
+                offset = itemOffset + dataOffset
+                arrays.append([offset, size, file_name])
+                print(f"[-] {file_name} at offset {offset} with {size} bytes")
+    extract_file(file, arrays)
 
 def extract_file(file, arrays):
     for index, item in enumerate(arrays):
@@ -88,4 +114,4 @@ def extract_file(file, arrays):
             outfile.write(trimmed_data)
 
 if __name__ == "__main__":
-    typer.run(main)
+    app()
