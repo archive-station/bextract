@@ -24,6 +24,8 @@ def get_file_name(
     return currentString
 
             
+
+
 def main(
     file: str,
     extract: Annotated[bool, typer.Option(help="Extract a BPM file.")] = True
@@ -47,15 +49,13 @@ def main(
                     current_line = f.tell()
                     if current_line > stopLine:
                         break
-                    items, itemOffset, size, uselessBtw = unpack('>IIxxHI', byte)
-                    
-                    
+                    items, itemOffset, size = unpack('>IIIxxxx', byte)
                     name = items + stopLine
                     file_name = get_file_name(file, name)
 
                     offset = itemOffset + dataOffset
                     arrays.append([offset, size, file_name])
-                    print(f"[-] {file_name} at offset {offset} with {size} bytes, {uselessBtw}")
+                    print(f"[-] {file_name} at offset {offset} with {size} bytes")
         extract_file(file, arrays)
     else:
         print('uh, you can only extract btw for now lol')
