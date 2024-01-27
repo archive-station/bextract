@@ -2,6 +2,7 @@ from struct import *
 import typer
 import codecs
 import os
+import mmap
 from typing_extensions import Annotated
 app = typer.Typer()
 
@@ -30,6 +31,9 @@ def inject(
     file: str,
     inject_file: str,
 ):
+    data = []
+    new_data = []
+    fileIndex = None
     with open(file, "rb+") as f:
         data_byte = f.read(16)
         if len(data_byte) != 16:
@@ -48,13 +52,27 @@ def inject(
                 name = items + stopLine
                 offset = itemOffset + dataOffset
                 file_name = get_file_name(file, name)
+                data.append([offset, size, file_name])
+                new_data.append([offset, size, file_name])
                 if file_name == inject_file:
+                    fileIndex = len(data)
                     sanityCheck = True
             if sanityCheck == False:
                 print("[!!!!] can't find the file to inject")
                 exit()
             else:
-                pass
+                with open(inject_file, 'rb') as test:
+                    test.seek(0, os.SEEK_END)
+                    injectedSize = test.tell()
+                currentSize = data[fileIndex][1]
+                updateOffset = injectedSize - currentSize
+
+                new_data[fileIndex][1] = injectedSize
+                for item in new_data[fileIndex:]:
+                    item[0] += updateOffset
+                print('new offsets, you gotta replace them yourself since im working on solution :3')
+                print(new_data)
+
 
 @app.command()
 def extract(
