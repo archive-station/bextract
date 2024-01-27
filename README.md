@@ -9,7 +9,7 @@ extract .bpm (bexide package manager) files in many of the doko demo issyo games
 note: very much in work in progress and need to add more stuff
 # goals
 <p>inject files [?] - trying to find a python solution to override bytes from one offset to another. its over.</p>
-<p>support for bpms inside bpms [?] - no good examples yet</p>
+<p>support for bpms inside bpms [?] - no good sample files yet (only old format)</p>
 <p>figure out the other file formats []</p>
 <h1>credits</h1>
 <p>credits to mikhail for figuring out the file format crap.</p>
