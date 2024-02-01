@@ -3,9 +3,40 @@ import typer
 import codecs
 import os
 import mmap
+import ctypes
 from typing_extensions import Annotated
 app = typer.Typer()
 
+def update_offsets(
+    offsets
+):
+    with open("BPM_INJECTION.tmp", "rb+") as f:
+        data_byte = f.read(16)
+        if len(data_byte) != 16:
+            print("[!] fail")
+            exit()
+        else:
+            items, buffer, dataOffset = unpack('>IxxxxII', data_byte)
+            stopLine = int(((dataOffset - buffer) / 16)) * 16
+            sanityCheck = False
+
+            index = 0
+            # gives an error mfw
+
+
+
+            # while (byte := f.read(16)):
+            #     current_line = f.tell()
+            #     if current_line > stopLine:
+            #         break
+            #     # convert 
+            #     convert = list(byte)
+            #     bad = bytes(byte)
+            #     data = pack_into('>IIIxxxx', bad, 0, offsets[index][3], offsets[index][0], offsets[index][1])
+            #     f.seek(-16, 1)
+            #     f.write(data)
+            #     f.seek(0, 2)
+            #     index += 1
 def get_file_name(
     file: str,
     name: int
@@ -34,9 +65,15 @@ def inject(
     data = []
     new_data = []
     fileIndex = None
+    checkFile = os.path.isfile(inject_file)
+    if checkFile == False:
+        print("no valid file")
+        exit()
+
     with open(file, "rb+") as f:
         data_byte = f.read(16)
         if len(data_byte) != 16:
+            print("files broken")
             exit()
         else:
             items, buffer, dataOffset = unpack('>IxxxxII', data_byte)
@@ -53,9 +90,9 @@ def inject(
                 offset = itemOffset + dataOffset
                 file_name = get_file_name(file, name)
                 data.append([offset, size, file_name])
-                new_data.append([offset, size, file_name])
+                new_data.append([offset, size, file_name, items])
                 if file_name == inject_file:
-                    fileIndex = len(data)
+                    fileIndex = len(data) - 1
                     sanityCheck = True
             if sanityCheck == False:
                 print("[!!!!] can't find the file to inject")
@@ -63,15 +100,35 @@ def inject(
             else:
                 with open(inject_file, 'rb') as test:
                     test.seek(0, os.SEEK_END)
-                    injectedSize = test.tell()
-                currentSize = data[fileIndex][1]
-                updateOffset = injectedSize - currentSize
+                    file_size = test.tell()
+                with open(file, 'rb') as test1:
+                    test1.seek(0, os.SEEK_END)
+                    other_file_size = test1.tell()
+                injectSize = file_size
+                fileSize = data[fileIndex][1]
 
-                new_data[fileIndex][1] = injectedSize
+                updateOffset = injectSize - fileSize
+
+                new_data[fileIndex][1] = injectSize
                 for item in new_data[fileIndex:]:
                     item[0] += updateOffset
-                print('new offsets, you gotta replace them yourself since im working on solution :3')
-                print(new_data)
+                
+                read = open("BPM_INJECTION.tmp", "x")
+                with open(file, "rb+") as inf:
+                    with open("BPM_INJECTION.tmp", "rb+") as tmp:
+                        with open(inject_file, "rb+") as outf:
+                            inf.seek(0)
+                            beginning_data = inf.read(data[fileIndex][0])
+                            tmp.write(beginning_data)
+                            injection_data = outf.read()
+                            tmp.write(injection_data)
+                            inf.seek(data[fileIndex][0] + data[fileIndex][1])
+                            last_data = inf.read()
+                            tmp.write(last_data)
+                            update_offsets(new_data)
+
+                print('injected completed silly girl')
+                pass
 
 
 @app.command()
