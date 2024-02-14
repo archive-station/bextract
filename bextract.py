@@ -2,41 +2,57 @@ from struct import *
 import typer
 import codecs
 import os
-import mmap
-import ctypes
+import shutil
+import math
+
+
 from typing_extensions import Annotated
+
 app = typer.Typer()
 
-def update_offsets(
-    offsets
+def convert_size(size_bytes):
+   if size_bytes == 0:
+       return "0B"
+   size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+   i = int(math.floor(math.log(size_bytes, 1024)))
+   p = math.pow(1024, i)
+   s = round(size_bytes / p, 2)
+   return "%s %s" % (s, size_name[i])
+
+
+def inject_updateoffsets(
+    origin_file,
+    new_file,
+    new_file_size,
+    prev_file_size,
+    origin_file_offset
 ):
-    with open("BPM_INJECTION.tmp", "rb+") as f:
-        data_byte = f.read(16)
-        if len(data_byte) != 16:
-            print("[!] fail")
-            exit()
-        else:
-            items, buffer, dataOffset = unpack('>IxxxxII', data_byte)
-            stopLine = int(((dataOffset - buffer) / 16)) * 16
-            sanityCheck = False
+    if new_file_size > prev_file_size:
+        with open('inject.tmp', "rb+") as file:
+            buffer = int.from_bytes(file.read(4), "big", signed=False)
+            amount_of_files = buffer
+            file.seek(8, os.SEEK_CUR)
+            size = int.from_bytes(file.read(4), "big", signed=False)
+            for i in range(amount_of_files):
+                buf = file.read(4)
+                offset = int.from_bytes(file.read(4), "big", signed=False)
+                new_size_diff = new_file_size - prev_file_size
 
-            index = 0
-            # gives an error mfw
+                if offset > origin_file_offset:
+                    new_data = offset + new_size_diff
 
+                    file.seek(-4, os.SEEK_CUR)
+                    file.write((new_data).to_bytes(4, byteorder='big', signed=False))
+                    file.seek(8, os.SEEK_CUR)
+                    continue
 
-
-            # while (byte := f.read(16)):
-            #     current_line = f.tell()
-            #     if current_line > stopLine:
-            #         break
-            #     # convert 
-            #     convert = list(byte)
-            #     bad = bytes(byte)
-            #     data = pack_into('>IIIxxxx', bad, 0, offsets[index][3], offsets[index][0], offsets[index][1])
-            #     f.seek(-16, 1)
-            #     f.write(data)
-            #     f.seek(0, 2)
-            #     index += 1
+                if offset == origin_file_offset:
+                    file.write((new_file_size).to_bytes(4, byteorder='big', signed=False))
+                    file.seek(4, os.SEEK_CUR)
+                else:
+                    file.seek(8, os.SEEK_CUR)
+                    
+                    
 def get_file_name(
     file: str,
     name: int
@@ -65,15 +81,16 @@ def inject(
     data = []
     new_data = []
     fileIndex = None
+    
     checkFile = os.path.isfile(inject_file)
     if checkFile == False:
-        print("no valid file")
+        print("not a valid file")
         exit()
-
+        
     with open(file, "rb+") as f:
         data_byte = f.read(16)
         if len(data_byte) != 16:
-            print("files broken")
+            print("your file is broken")
             exit()
         else:
             items, buffer, dataOffset = unpack('>IxxxxII', data_byte)
@@ -85,12 +102,12 @@ def inject(
                 current_line = f.tell()
                 if current_line > stopLine:
                     break
-                items, itemOffset, size = unpack('>IIIxxxx', byte)
-                name = items + stopLine
+                fileNameOffset, itemOffset, size = unpack('>IIIxxxx', byte)
+                name = fileNameOffset + stopLine
                 offset = itemOffset + dataOffset
                 file_name = get_file_name(file, name)
                 data.append([offset, size, file_name])
-                new_data.append([offset, size, file_name, items])
+                new_data.append([itemOffset, size, file_name, fileNameOffset])
                 if file_name == inject_file:
                     fileIndex = len(data) - 1
                     sanityCheck = True
@@ -98,37 +115,72 @@ def inject(
                 print("[!!!!] can't find the file to inject")
                 exit()
             else:
-                with open(inject_file, 'rb') as test:
-                    test.seek(0, os.SEEK_END)
-                    file_size = test.tell()
-                with open(file, 'rb') as test1:
-                    test1.seek(0, os.SEEK_END)
-                    other_file_size = test1.tell()
-                injectSize = file_size
-                fileSize = data[fileIndex][1]
-
-                updateOffset = injectSize - fileSize
-
-                new_data[fileIndex][1] = injectSize
-                for item in new_data[fileIndex:]:
-                    item[0] += updateOffset
+                # get file size
+                new_size = os.path.getsize(inject_file)
                 
-                read = open("BPM_INJECTION.tmp", "x")
-                with open(file, "rb+") as inf:
-                    with open("BPM_INJECTION.tmp", "rb+") as tmp:
-                        with open(inject_file, "rb+") as outf:
-                            inf.seek(0)
-                            beginning_data = inf.read(data[fileIndex][0])
-                            tmp.write(beginning_data)
-                            injection_data = outf.read()
-                            tmp.write(injection_data)
-                            inf.seek(data[fileIndex][0] + data[fileIndex][1])
-                            last_data = inf.read()
-                            tmp.write(last_data)
-                            update_offsets(new_data)
+                
+                checkFile = os.path.isfile("inject.tmp")
+                if checkFile == True:
+                    os.remove("inject.tmp")
+                test = open("inject.tmp", "x")
+                
+                with open(file, "rb+") as origin:
+                    with open(inject_file, "rb+") as new:
+                        with open("inject.tmp", "rb+") as tmp:
+                            start = origin.read(data[fileIndex][0])
+                            tmp.write(start)
+                            new_file = new.read()
+                            tmp.write(new_file)
+                            if new_size >= data[fileIndex][1]:
+                                origin.seek(data[fileIndex][0] + data[fileIndex][1])
+                                other_data = origin.read()
+                                tmp.write(other_data)
+                            else:
+                                print('lesser size is in wip!')
+                                exit()
+                inject_updateoffsets(file, inject_file, new_size, data[fileIndex][1], new_data[fileIndex][0])
+    shutil.copy('inject.tmp', f"INJECTED_{file}")
+    print(f"[!] Successfully injected {inject_file} into {file}")
+    os.remove('inject.tmp')
+    pass
 
-                print('injected completed silly girl')
-                pass
+@app.command()
+def info(
+    file: str
+):
+    print('[?] pulling bpm info')
+    new_size = os.path.getsize(file)
+    arrays = []
+    with open(file, "rb+") as f:
+        data_byte = f.read(16)
+        if len(data_byte) != 16:
+            exit()
+        else:
+            items, buffer, dataOffset = unpack('>IxxxxII', data_byte)
+            print(f"[!] found the data buffer offset at {hex(dataOffset)}")
+                
+                
+            # evil bexide file list pulling level hacking
+            # what the fuck?
+            stopLine = int(((dataOffset - buffer) / 16)) * 16
+            
+            while (byte := f.read(16)):
+                current_line = f.tell()
+                if current_line > stopLine:
+                    break
+                items, itemOffset, size = unpack('>IIIxxxx', byte)
+                name = items + stopLine
+                file_name = get_file_name(file, name)
+
+                offset = itemOffset + dataOffset
+                print(f"File: {file_name}, Offset w/ Data Buffer: {offset}, Offset w/o: {itemOffset}, Size: {convert_size(size)}")
+                arrays.append([offset, size, file_name])
+    lastElement = len(arrays) - 1
+    add = arrays[lastElement][0] + arrays[lastElement][1]
+    if add ==  new_size:
+        print("[!] This BPM can work ingame")
+    else:
+        print("[!] This BPM cannot work ingame, something went wrong!")
 
 
 @app.command()
@@ -159,7 +211,7 @@ def extract(
 
                 offset = itemOffset + dataOffset
                 arrays.append([offset, size, file_name])
-                print(f"[-] {file_name} at offset {offset} with {size} bytes")
+                print(f"[-] {file_name} at offset {offset} with {convert_size(size)} bytes")
     extract_file(file, arrays)
 
 def extract_file(file, arrays):
