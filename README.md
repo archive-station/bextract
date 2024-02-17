@@ -9,11 +9,9 @@ extract .bpm (bexide package manager) files in many of the doko demo issyo games
 <p>note: do not fucking trust JPG files, they are all just JFIFs in disguise (caused me internal pain)</p>
 <p>note: very much in work in progress and need to add more stuff</p>
 <h1>goals</h1>
-<p>inject files [y] - took 20 days but it worked.</p>
-<p>injecting w/ directories [-] ill get this done asap</p>
-<p>universal support [?] prolly done</p>
-<p>support for bpms inside bpms [?] - no good sample files yet (only old format)</p>
-<p>figure out the other file formats []</p>
+<p>universal support [?] 0x800 multiply jumpscare</p>
+<p>support for bpms inside bpms [?] - once i add 0x800 shit</p>
+<p>figure out the other file formats [] - i hate ksc</p>
 <h1>credits</h1>
 <p>credits to mikhail for figuring out the file format crap.</p>
 <p>im dumb at reverse enginnering and i just made the script</p>
