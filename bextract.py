@@ -95,7 +95,7 @@ def inject(
         else:
             items, buffer, dataOffset = unpack('>IxxxxII', data_byte)
             print(f"[!] found the data buffer offset at {hex(dataOffset)}")
-            stopLine = int(((dataOffset - buffer) / 16)) * 16
+            stopLine = (items+1) * 16
             sanityCheck = False
 
             while (byte := f.read(16)):
@@ -162,8 +162,8 @@ def info(
                 
             # evil bexide file list pulling level hacking
             # what the fuck?
-            stopLine = int(((dataOffset - buffer) / 16)) * 16
-            
+            stopLine = (items+1) * 16
+
             while (byte := f.read(16)):
                 current_line = f.tell()
                 if current_line > stopLine:
@@ -199,7 +199,7 @@ def extract(
                 
             # evil bexide file list pulling level hacking
             # what the fuck?
-            stopLine = int(((dataOffset - buffer) / 16)) * 16
+            stopLine = (items+1) * 16
             
             while (byte := f.read(16)):
                 current_line = f.tell()
