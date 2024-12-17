@@ -8,8 +8,7 @@ extract .bpm (bexide package manager) files in many of the doko demo issyo games
 
 
 <h1>goals</h1>
-<p>universal support [?] 0x800 multiply jumpscare</p>
-<p>support for bpms inside bpms [?] - once i add 0x800 shit</p>
+<p>BPM 1.0 support [?] unsure if i will ever add this</p>
 <p>figure out the other file formats [] - i hate ksc</p>
 <h1>credits</h1>
 <p>credits to mikhail for figuring out the file format crap.</p>
