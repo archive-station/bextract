@@ -64,12 +64,12 @@ def get_file_name(
         if len(data_byte) != 1:
             exit()
         else:
-            currentString += codecs.decode(data_byte, 'utf-8')
+            currentString += codecs.decode(data_byte, errors='ignore')
 
             while (byte := f.read(1)):
                 if byte == b'\x00':
                     break
-                currentString += codecs.decode(byte, 'utf-8')
+                currentString += codecs.decode(byte, errors='ignore')
     return currentString
 
 
